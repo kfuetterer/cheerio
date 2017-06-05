@@ -1,8 +1,9 @@
 var express = require("express");
+var exhbs = require("express-handlebars");
 var bodyParser = require("body-parser");
 var logger = require("morgan");
 var mongoose = require("mongoose");
-var Note = require("./models/Note.js");
+var Comment = require("./models/Comment.js");
 var Article = require("./models/Article.js");
 var request = require("request");
 var cheerio = require("cheerio");
@@ -18,7 +19,7 @@ app.use(bodyParser.urlencoded({
 
 app.use(express.static("public"));
 
-mongoose.connect("mongodb://localhost/week18day3mongoose");
+mongoose.connect("mongodb://localhost/newyorktimesarticles");
 var db = mongoose.connection;
 
 db.on("error", function(error) {
@@ -31,14 +32,15 @@ db.once("open", function() {
 
 app.get("/scrape", function(req, res) {
 
-  request("http://www.echojs.com/", function(error, response, html) {
+  request("https://www.nytimes.com/section/world?module=SiteIndex&pgtype=sectionfront&region=Footer", function(error, response, html) {
     var $ = cheerio.load(html);
-    $("article h2").each(function(i, element) {
+    $(".story-link a").each(function(i, element) {
 
       var result = {};
 
-      result.title = $(this).children("a").text();
-      result.link = $(this).children("a").attr("href");
+      result.link = $(this).attr("href");
+      result.headline = $(this).find("h2").filter(".headline").text();
+      result.summary = $(this).find("p").filter(".summary").text();
 
       var entry = new Article(result);
 
@@ -48,14 +50,14 @@ app.get("/scrape", function(req, res) {
         }
         else {
           console.log(doc);
+          res.json("Data was scraped");
         }
       });
     });
   });
-  res.send("Scrape Complete");
 });
 
-app.get("/articles", function(req, res) {
+app.get("/", function(req, res) {
   Article.find({}, function (error, found) {
     res.json(found);
   });
@@ -67,9 +69,8 @@ app.get("/articles/:id", function(req, res) {
     }, function(error, article) {
       res.json(article);
     });
-    // and run the populate method with "note",
     Article.find({})
-      .populate("note")
+      .populate("comment")
       .exec(function(error, doc) {
         if (error) {
           res.send(error);
@@ -80,12 +81,12 @@ app.get("/articles/:id", function(req, res) {
 });
 
 app.post("/articles/:id", function(req, res) {
-  var newNote = new Note(req.body);
-  newNote.save(function(error, doc) {
+  var newComment = new Comment(req.body);
+  newComment.save(function(error, doc) {
     if (error) {
       res.send(error);
     } else {
-      Article.findOneAndUpdate({}, { $set: { "note": doc._id } }, { new: true }, function(err, newdoc) {
+      Article.findOneAndUpdate({}, { $set: { "comment": doc._id } }, { new: true }, function(err, newdoc) {
         if (err) {
           res.send(err);
         } else {

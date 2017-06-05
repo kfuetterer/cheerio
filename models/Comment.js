@@ -1,7 +1,7 @@
 var mongoose = require("mongoose");
 var Schema = mongoose.Schema;
 
-var NoteSchema = new Schema({
+var CommentSchema = new Schema({
   title: {
     type: String
   },
@@ -10,6 +10,6 @@ var NoteSchema = new Schema({
   }
 });
 
-var Note = mongoose.model("Note", NoteSchema);
+var Comment = mongoose.model("Comment", CommentSchema);
 
-module.exports = Note;
+module.exports = Comment;
