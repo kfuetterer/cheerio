@@ -56,15 +56,44 @@ app.get("/scrape", function(req, res) {
 });
 
 app.get("/articles", function(req, res) {
-
+  Article.find({}, function (error, found) {
+    res.json(found);
+  });
 });
 
 app.get("/articles/:id", function(req, res) {
-
+  Article.findOne({
+      "_id": mongojs.ObjectId(req.params.id)
+    }, function(error, article) {
+      res.json(article);
+    });
+    // and run the populate method with "note",
+    Article.find({})
+      .populate("note")
+      .exec(function(error, doc) {
+        if (error) {
+          res.send(error);
+        } else {
+          res.send(doc);
+        }
+      });
 });
 
 app.post("/articles/:id", function(req, res) {
-
+  var newNote = new Note(req.body);
+  newNote.save(function(error, doc) {
+    if (error) {
+      res.send(error);
+    } else {
+      Article.findOneAndUpdate({}, { $set: { "note": doc._id } }, { new: true }, function(err, newdoc) {
+        if (err) {
+          res.send(err);
+        } else {
+          res.send(newdoc);
+        }
+      });
+    }
+  });
 });
 
 app.listen(3000, function() {
