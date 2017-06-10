@@ -32,15 +32,15 @@ db.once("open", function() {
 
 app.get("/scrape", function(req, res) {
 
-  request("https://www.nytimes.com/section/world?module=SiteIndex&pgtype=sectionfront&region=Footer", function(error, response, html) {
+  request("https://www.nytimes.com/section/world?WT.nav=bottom-well&action=click&hpw&module=well-region&pgtype=Homepage&region=bottom-well&rref", function(error, response, html) {
     var $ = cheerio.load(html);
-    $(".story-link a").each(function(i, element) {
+    $(".story-link").each(function(i, element) {
 
       var result = {};
 
       result.link = $(this).attr("href");
-      result.headline = $(this).find("h2").filter(".headline").text();
-      result.summary = $(this).find("p").filter(".summary").text();
+      result.headline = $(this).find("h2.headline").text();
+      result.summary = $(this).find("p.summary").text();
 
       var entry = new Article(result);
 
@@ -50,30 +50,39 @@ app.get("/scrape", function(req, res) {
         }
         else {
           console.log(doc);
-          res.json("Data was scraped");
         }
       });
     });
   });
+  res.send("Data was scraped");
 });
 
-app.get("/", function(req, res) {
+app.get("/articles", function(req, res) {
   Article.find({}, function (error, found) {
-    res.json(found);
+    if (error) {
+      console.log(error);
+    } else {
+      res.send(found);
+    }
+  });
+});
+
+app.get("/comments", function(req, res) {
+  Comment.find({}, function (error, found) {
+    if (error) {
+      console.log(error);
+    } else {
+      res.send(found);
+    }
   });
 });
 
 app.get("/articles/:id", function(req, res) {
-  Article.findOne({
-      "_id": mongojs.ObjectId(req.params.id)
-    }, function(error, article) {
-      res.json(article);
-    });
-    Article.find({})
+  Article.findOne({ "_id": req.params.id })
       .populate("comment")
       .exec(function(error, doc) {
         if (error) {
-          res.send(error);
+          console.log(error);
         } else {
           res.send(doc);
         }
@@ -84,14 +93,15 @@ app.post("/articles/:id", function(req, res) {
   var newComment = new Comment(req.body);
   newComment.save(function(error, doc) {
     if (error) {
-      res.send(error);
+      console.log(error);
     } else {
-      Article.findOneAndUpdate({}, { $set: { "comment": doc._id } }, { new: true }, function(err, newdoc) {
-        if (err) {
-          res.send(err);
-        } else {
-          res.send(newdoc);
-        }
+      Article.findOneAndUpdate({ "_id": req.params.id}, { "comment": doc._id })
+        .exec(function(err, doc) {
+          if (err) {
+            console.log(err);
+          } else {
+            res.send(doc);
+          }
       });
     }
   });
